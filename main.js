@@ -217,7 +217,6 @@ const UI = {
         <div class="sound-input-container">
           <div class="sound-label">TEBAKANMU (detik)</div>
           <div class="sound-input-group">
-            <button class="action-btn mic-btn" style="margin-right: 8px;">MIC</button>
             <div class="stepper-col">
               <button class="stepper-btn" data-step="1.0">+</button>
               <button class="stepper-btn" data-step="0.1">+</button>
@@ -271,7 +270,6 @@ const UI = {
         const input = section.querySelector('.sound-input');
         const lockBtn = section.querySelector('.lock-in-btn');
         const steppers = section.querySelectorAll('.stepper-btn');
-        const micBtn = section.querySelector('.mic-btn');
 
         steppers.forEach(btn => {
           btn.addEventListener('click', () => {
@@ -289,13 +287,6 @@ const UI = {
           const val = parseFloat(input.value) || 0;
           if (val > 0) SoundMode.lockAnswer(p, val);
         });
-
-        if (micBtn) {
-          micBtn.addEventListener('click', () => {
-            if (GameState.players[p].locked || GameState.phase !== 'playing' || !SoundMode.soundPlayed) return;
-            SoundMode.recordVoice(p, input, micBtn);
-          });
-        }
       });
     } else if (mode === 'stop') {
       ['p1', 'p2'].forEach(p => {
@@ -534,70 +525,6 @@ const SoundMode = {
       clearTimeout(this.timeoutId);
       Game.evaluateRound();
     }
-  },
-
-  recordVoice(p, inputEl, micBtn) {
-    if (!navigator.mediaDevices || !window.MediaRecorder) {
-      alert('Mic tidak didukung di browser ini.');
-      return;
-    }
-    
-    micBtn.innerText = 'REC...';
-    micBtn.style.backgroundColor = 'var(--color-p1)';
-
-    navigator.mediaDevices.getUserMedia({ audio: true })
-      .then(stream => {
-        const mediaRecorder = new MediaRecorder(stream);
-        const audioChunks = [];
-
-        mediaRecorder.addEventListener("dataavailable", event => {
-          audioChunks.push(event.data);
-        });
-
-        mediaRecorder.addEventListener("stop", () => {
-          const audioBlob = new Blob(audioChunks, { type: 'audio/webm' });
-          const formData = new FormData();
-          formData.append('audio', audioBlob);
-
-          micBtn.innerText = 'PROSES...';
-          
-          fetch('http://localhost:5000/parse-time', {
-            method: 'POST',
-            body: formData
-          })
-          .then(response => response.json())
-          .then(data => {
-            if (data.seconds !== undefined) {
-              inputEl.value = parseFloat(data.seconds).toFixed(1);
-            } else {
-              alert('Gagal mendeteksi waktu dari suara.');
-            }
-            micBtn.innerText = 'MIC';
-            micBtn.style.backgroundColor = 'var(--color-white)';
-          })
-          .catch(err => {
-            console.error(err);
-            alert('Server Python tidak terhubung.');
-            micBtn.innerText = 'MIC';
-            micBtn.style.backgroundColor = 'var(--color-white)';
-          });
-          
-          stream.getTracks().forEach(track => track.stop());
-        });
-
-        mediaRecorder.start();
-        setTimeout(() => {
-          if (mediaRecorder.state !== 'inactive') {
-            mediaRecorder.stop();
-          }
-        }, 5000); 
-      })
-      .catch(err => {
-        console.error(err);
-        micBtn.innerText = 'MIC';
-        micBtn.style.backgroundColor = 'var(--color-white)';
-        alert('Akses mic ditolak.');
-      });
   }
 };
 
